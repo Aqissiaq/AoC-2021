@@ -1,13 +1,13 @@
-{-# LANGUAGE OverloadedStrings #-}
 import qualified Data.Text as T
 import Data.List
 import Data.Maybe
+import Data.List.Split
 
 main :: IO ()
-main = interact solve2
+main = interact solve1
 
 parseLine :: String -> [String]
-parseLine str = (map T.unpack . (T.splitOn (T.pack "|")) . T.pack) str
+parseLine = splitOn "|"
 
 solve1 :: String -> String
 solve1 str = show .length $
