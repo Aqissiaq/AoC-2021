@@ -47,12 +47,12 @@ parseValue binStr = let binValue = buildValue binStr
 buildValue :: Bin -> Bin
 buildValue ('1':rest) = take 4 rest ++ (buildValue $ drop 4 rest)
 buildValue ('0':rest) = take 4 rest
-buildValue e = error $ "cannot build value from" ++ show e
+buildValue e = error $ "cannot build value from " ++ show e
 
 parseOperator :: Bin -> ([Packet], Bin)
 parseOperator ('0':rest) = let l = binToDec $ take 15 $ rest in parsePacketsL l (drop 15 rest)
 parseOperator ('1':rest) = let n = binToDec $ take 11 $ rest in parsePacketsN n (drop 11 rest)
-parseOperator e = error $ "cannot parse operators" ++ show e
+parseOperator e = error $ "cannot parse packet list: " ++ show e
 
 parsePacketsL :: Int -> Bin -> ([Packet], Bin)
 parsePacketsL 0 binStr = ([], binStr)
