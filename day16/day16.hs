@@ -56,18 +56,18 @@ parseOperator e = error $ "cannot parse packet list: " ++ show e
 
 parsePacketsL :: Int -> Bin -> ([Packet], Bin)
 parsePacketsL 0 binStr = ([], binStr)
-parsePacketsL l binStr = let (packet, rest) = parsePacket binStr
+parsePacketsL l binStr = let (p, rest) = parsePacket binStr
                              originalL = length binStr
                              restL = length rest
                              parsedL = originalL - restL
-                             (packets, rests) = parsePacketsL (l - parsedL) $ drop parsedL binStr in
-                           (packet:packets, rests)
+                             (ackets, rests) = parsePacketsL (l - parsedL) $ drop parsedL binStr in
+                           (p:ackets, rests)
 
 parsePacketsN :: Int -> Bin -> ([Packet], Bin)
 parsePacketsN 0 binStr = ([], binStr)
-parsePacketsN n binStr = let (packet, rest) = parsePacket binStr
-                             (packets, rests) = parsePacketsN (n-1) rest in
-                           (packet:packets, rests)
+parsePacketsN n binStr = let (p, rest) = parsePacket binStr
+                             (ackets, rests) = parsePacketsN (n-1) rest in
+                           (p:ackets, rests)
 
 chunk :: Int -> Int -> [a] -> [a]
 chunk start end = drop start . take end
