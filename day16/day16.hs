@@ -37,7 +37,7 @@ parsePacket binStr = let version = binToDec $ chunk 0 3 binStr
                          remain  = drop 6 binStr in
   case binToDec typeID of
     4 -> let (value, rest) = parseValue remain in (Literal version value, rest)
-    n -> let (subPackets, rest) = parseOperator remain in (Operator version n subPackets, rest)
+    n -> let (subPackets, rest) = parseSubpackets remain in (Operator version n subPackets, rest)
 
 parseValue :: Bin -> (Int, Bin)
 parseValue binStr = let binValue = buildValue binStr
@@ -49,17 +49,15 @@ buildValue ('1':rest) = take 4 rest ++ (buildValue $ drop 4 rest)
 buildValue ('0':rest) = take 4 rest
 buildValue e = error $ "cannot build value from " ++ show e
 
-parseOperator :: Bin -> ([Packet], Bin)
-parseOperator ('0':rest) = let l = binToDec $ take 15 $ rest in parsePacketsL l (drop 15 rest)
-parseOperator ('1':rest) = let n = binToDec $ take 11 $ rest in parsePacketsN n (drop 11 rest)
-parseOperator e = error $ "cannot parse packet list: " ++ show e
+parseSubpackets :: Bin -> ([Packet], Bin)
+parseSubpackets ('0':rest) = let l = binToDec $ take 15 $ rest in parsePacketsL l (drop 15 rest)
+parseSubpackets ('1':rest) = let n = binToDec $ take 11 $ rest in parsePacketsN n (drop 11 rest)
+parseSubpackets e = error $ "cannot parse packet list: " ++ show e
 
 parsePacketsL :: Int -> Bin -> ([Packet], Bin)
 parsePacketsL 0 binStr = ([], binStr)
 parsePacketsL l binStr = let (p, rest) = parsePacket binStr
-                             originalL = length binStr
-                             restL = length rest
-                             parsedL = originalL - restL
+                             parsedL = (length binStr) - (length rest)
                              (ackets, rests) = parsePacketsL (l - parsedL) $ drop parsedL binStr in
                            (p:ackets, rests)
 
