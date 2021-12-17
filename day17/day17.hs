@@ -4,10 +4,10 @@ import Data.Maybe
 main :: IO ()
 main = do input <- getContents
           let target = parseInput input
-          -- part 1
-          print $ testVelocities 250 250 target
-          -- part 2
-          print $ part2 250 250 target
+          -- brute force part 1...
+          print $ highestVelocity 250 250 target
+          -- ...and part 2
+          print $ countDistinct 250 250 target
 
 type Point = (Int, Int)
 type Velocity = (Int, Int)
@@ -25,21 +25,21 @@ step ((x,y), (vx,vy)) = ((x + vx, y + vy), (max (vx-1) 0, vy-1))
 inTarget :: Target -> Point -> Bool
 inTarget (tx1, tx2, ty1, ty2) (x,y) = and [x >= tx1, x <= tx2, y >= ty1, y <= ty2]
 
-reachesTarget :: Velocity -> Target -> Maybe Int
-reachesTarget v t@(_, _, ty1, _) = if any (inTarget t) $ trajHead
+-- maybe maximum height reached (Nothing if we miss target)
+heightReached :: Velocity -> Target -> Maybe Int
+heightReached v t@(_, tx2, ty1, _) = if any (inTarget t) trajectory
                                    then Just maxHeight else Nothing
   where
-    trajectory = map fst $ iterate step ((0,0),v)
-    highEnough (_,y) = y >= ty1
-    trajHead = takeWhile highEnough trajectory
-    maxHeight = maximum $ map snd trajHead
+    overshot (x,y) = y < ty1 || x > tx2
+    trajectory = takeWhile (not . overshot) $ map fst $ iterate step ((0,0),v)
+    maxHeight = maximum $ map snd trajectory
 
-testVelocities :: Int -> Int -> Target -> Int
-testVelocities maxX maxY t = maximum $ catMaybes maxHeights
+highestVelocity :: Int -> Int -> Target -> Int
+highestVelocity maxX maxY t = maximum $ catMaybes maxHeights
   where
-    maxHeights = [reachesTarget v t | v <- [(x,y) | x <- [0..maxX], y <- [0..maxY]]]
+    maxHeights = [heightReached v t | v <- [(x,y) | x <- [0..maxX], y <- [0..maxY]]]
 
-part2 :: Int -> Int -> Target -> Int
-part2 maxX maxY t = length $ catMaybes trajs
+countDistinct :: Int -> Int -> Target -> Int
+countDistinct maxX maxY t = length $ catMaybes hits
   where
-    trajs = [reachesTarget v t | v <- [(x,y) | x <- [0..maxX], y <- [-maxY..maxY]]]
+    hits = [heightReached v t | v <- [(x,y) | x <- [0..maxX], y <- [-maxY..maxY]]]
