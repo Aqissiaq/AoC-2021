@@ -1,6 +1,7 @@
 import Data.Char
 import Data.Maybe
 import Data.Tuple.Extra
+import Control.Applicative
 
 data Snum = Lit Int | Pair Snum Snum
   deriving(Show)
@@ -14,14 +15,10 @@ main = do input <- getContents
           print $ maximum [magnitude $ x `sAdd` y | x <- snums, y <- snums]
 
 sAdd :: Snum -> Snum -> Snum
-sAdd = (reduce.) . Pair
+sAdd = (reduce .) . Pair
 
 reduce :: Snum -> Snum
-reduce s = case explode s of
-  Just s' -> reduce s'
-  Nothing -> case split s of
-    Just s' -> reduce s'
-    Nothing -> s
+reduce sn = maybe sn reduce (explode sn <|> split sn)
 
 explode :: Snum -> Maybe Snum
 explode s = explode' 0 s >>= Just . fst3
