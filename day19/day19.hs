@@ -1,31 +1,26 @@
 import Data.List.Split
 import Data.Maybe
+import Data.Either
 import qualified Data.Set as S
 import qualified Data.Map as M
 
 type Point = (Int, Int, Int)
 type Offset = (Int, Int, Int)
 data Scanner = Scanner { sid :: Int, beacons :: (S.Set Point)}
-  deriving Ord
+  deriving (Ord, Eq)
 
 instance Show Scanner where
   show = ("Scanner: "++) . show . sid
-instance Eq Scanner where
-  Scanner id0 _ == Scanner id1 _ = id0 == id1
-
-ppMap :: (Show a, Show b) => M.Map a b -> String
-ppMap m = unlines [(show k)++" : "++ (show v) | (k,v) <- M.toList m]
 
 main :: IO ()
 main = do input <- getContents
           let scanners = parse input
-              relOffs = M.fromList $ zip [0..] $ map (relativeOffsets scanners) scanners
-          putStr . ppMap $ relOffs
-          print ""
-          print $ combineOffsets relOffs
-          -- 1. combine offsets
-          -- 2. translate scanners
-          -- 3. size of set
+              located = locateAll (M.fromList [((head scanners), (0,0,0))]) (tail scanners)
+              positions = M.elems located
+          -- part 1: how many beacons?
+          print $ S.size $ translateAll located
+          -- part 2: longest distance between scanners
+          print $ maximum [manhattan p q | p <- positions, q <- positions]
 
 parse :: String -> [Scanner]
 parse = map parseScanner . zip [0..] . splitOn [""] . lines
@@ -34,7 +29,7 @@ parse = map parseScanner . zip [0..] . splitOn [""] . lines
     parseScanner (i, bs) = Scanner i (parseBeacons $ tail bs)
 
 rotateX,rotateY,rotateZ :: S.Set Point -> S.Set Point
-rotateX = S.map (\(x,y,z) -> (x,z,-y))
+rotateX = S.map (\(x,y,z) -> (x,-z,y))
 rotateY = S.map (\(x,y,z) -> (-z,y,x))
 rotateZ = S.map (\(x,y,z) -> (-y,x,z))
 
@@ -45,31 +40,37 @@ allRotations s = S.fromList [iterate rotateZ (iterate rotateY (iterate rotateX s
 translateBy :: Point -> S.Set Point -> S.Set Point
 translateBy (dx,dy,dz) = S.map (\(x,y,z) -> (x+dx, y+dy, z+dz))
 
-offset :: Point -> Point -> Offset
-offset (x0,y0,z0) (x1,y1,z1) = (x1-x0, y1-y0, z1-z0)
+translateAll :: M.Map Scanner Offset -> S.Set Point
+translateAll m = S.unions [(translateBy off) (beacons s) | (s, off) <- M.toList m]
 
-(+++) :: Point -> Point -> Point
-(x,y,z) +++ (x',y',z') = (x+x', y+y', z+z')
+sub, add :: Point -> Point -> Offset
+sub (x0,y0,z0) (x1,y1,z1) = (x0-x1, y0-y1, z0-z1)
+add (x0,y0,z0) (x1,y1,z1) = (x0+x1, y0+y1, z0+z1)
+
+manhattan :: Point -> Point -> Int
+manhattan (x0,y0,z0) (x1,y1,z1) = abs (x0-x1 + y0-y1 + z0-z1)
 
 offsetCounts :: S.Set Point -> S.Set Point -> M.Map Offset Int
-offsetCounts s1 s2 = M.fromListWith (+) [(offset x y, 1) | x <- S.toList s1, y <- S.toList s2]
+offsetCounts s1 s2 = M.fromListWith (+) [(x `sub` y, 1) | x <- S.toList s1, y <- S.toList s2]
 
-locateRelative :: Scanner -> Scanner -> Maybe Offset
-locateRelative (Scanner _ b1) (Scanner _ b2) = S.lookupMax valid >>= Just . fst . M.findMax
+-- this is an absolute disaster, but it works ¯\_(ツ)_/¯
+locateAll :: M.Map Scanner Offset -> [Scanner] -> M.Map Scanner Offset
+locateAll located [] = located
+locateAll located scanners = let (newLoc, leftover) = partitionEithers $ map lockin scanners in
+                               locateAll (located `M.union` M.fromList newLoc) leftover
+  where
+    lockin :: Scanner -> Either (Scanner, Offset) Scanner
+    lockin new = let matches = filter (isJust . snd) $ map (\old -> (old, locateRelative old new)) (M.keys located)
+                     oldOffs = map ((located M.!) . fst) matches
+                  in if null matches then Right new else
+                       let  (newScan, newOff) = fromJust $ snd (head matches)
+                            oldOff = head oldOffs in
+                         Left (newScan, newOff `add` oldOff)
+
+locateRelative :: Scanner -> Scanner -> Maybe (Scanner, Offset)
+locateRelative (Scanner _ b1) (Scanner id2 b2) = S.findMax $ S.map overlaps offsets
   where
     b2Rots = allRotations b2
-    offsets = S.map (offsetCounts b1) b2Rots
-    valid = S.filter (not . M.null) $ S.map (M.filter (>11)) offsets
-
-relativeOffsets :: [Scanner] -> Scanner -> M.Map Int Offset
-relativeOffsets scanners s = M.filter (/=(0,0,0)) . M.fromList $ [(sid, fromJust offs) | (sid, offs) <- offsets, isJust offs]
-  where
-    offsets = [(sid s', locateRelative s s') | s' <- scanners]
-
--- combineOffsets :: M.Map Int (M.Map Int Offset) -> M.Map Int Offset
-combineOffsets m = combine' 0 3
-  where
-    combine' :: Int -> Int -> Offset
-    combine' source target | M.member target (m M.! source) = (m M.! source) M.! target
-                           | otherwise = let (next, offset) = M.findMax (m M.! source) in
-                               offset +++ combine' next target
+    offsets = S.map (\s -> (offsetCounts b1 s, s)) b2Rots
+    overlaps (m, s) = if M.null $ M.filter (>11) m then Nothing else let (offs, _) = M.findMax $ M.filter (>11) m in
+      Just $ (Scanner id2 s, offs)
