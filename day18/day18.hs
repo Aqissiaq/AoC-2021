@@ -1,6 +1,5 @@
 import Data.Char
 import Data.Maybe
-import Data.Tuple.Extra
 import Control.Applicative
 
 data Snum = Lit Int | Pair Snum Snum
@@ -21,15 +20,15 @@ reduce :: Snum -> Snum
 reduce sn = maybe sn reduce (explode sn <|> split sn)
 
 explode :: Snum -> Maybe Snum
-explode s = explode' 0 s >>= Just . fst3
+explode s = explode' 0 s >>= Just . fst
   where
-    explode' :: Int -> Snum -> Maybe (Snum, Int, Int)
-    explode' 4 (Pair (Lit x) (Lit y)) = Just (Lit 0, x, y)
+    explode' :: Int -> Snum -> Maybe (Snum, (Int, Int))
+    explode' 4 (Pair (Lit x) (Lit y)) = Just (Lit 0, (x, y))
     explode' depth (Pair l r) =
       case explode' (depth + 1) l of
-        Just (newL, x, y) -> Just (Pair newL (addToLeftMost y r), x, 0)
+        Just (newL, (x, y)) -> Just (Pair newL (addToLeftMost y r), (x, 0))
         Nothing -> explode' (depth + 1) r
-                   >>= (\(newR, x, y) -> Just (Pair (addToRightMost x l) newR, 0, y))
+                   >>= (\(newR, (x, y)) -> Just (Pair (addToRightMost x l) newR, (0, y)))
     explode' _ _ = Nothing
 
 addToLeftMost, addToRightMost :: Int -> Snum -> Snum
@@ -44,7 +43,7 @@ split :: Snum -> Maybe Snum
 split (Lit n) | n >= 10 = Just $ Pair (Lit $ n `div` 2) (Lit $ (n+1) `div` 2)
               | otherwise = Nothing
 split (Pair l r) = case split l of
-  Just newL -> Just (Pair newL r)
+  Just newL -> Just $ Pair newL r
   Nothing -> split r >>= Just . Pair l
 
 magnitude :: Snum -> Int
