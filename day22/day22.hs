@@ -74,7 +74,8 @@ add cubes new = (new, 1) : (cubes `sub` new)
 sub cubes new = cubes ++ ints cubes
   where
     ints = mapMaybe (\(cube, count)
-                     -> new `intersectC` cube >>= (\c -> Just (c, -count)))
+                     -> do int <- new `intersectC` cube
+                           pure (int, -count))
 
 step2 :: Reactor2 -> Step -> Reactor2
 step2 r (On cube) = r `add` cube
